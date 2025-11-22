@@ -4,7 +4,9 @@
 """
 Escriba el codigo que ejecute la accion solicitada en cada pregunta.
 """
-
+import os
+import zipfile
+import pandas as pd
 
 def pregunta_01():
     """
@@ -71,3 +73,42 @@ def pregunta_01():
 
 
     """
+    zip_path = "files/input.zip"
+    extract_path = "files/input"  # carpeta donde se descomprime
+    output_path = "files/output"
+
+    os.makedirs(output_path, exist_ok=True)
+
+    # Descomprimir el ZIP (si no existe la carpeta descomprimida)
+    if not os.path.exists(extract_path):
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall("files")  # extraemos directamente en files/
+
+    # La carpeta raíz dentro del ZIP es 'input'
+    data_root = os.path.join("files", "input")
+
+    def build_dataset(folder_path):
+        data = []
+        for sentiment in ["negative", "neutral", "positive"]:
+            sentiment_path = os.path.join(folder_path, sentiment)
+            if not os.path.exists(sentiment_path):
+                continue
+            for filename in sorted(os.listdir(sentiment_path)):
+                file_path = os.path.join(sentiment_path, filename)
+                if os.path.isfile(file_path) and filename.endswith(".txt"):
+                    with open(file_path, "r", encoding="utf-8") as f:
+                        phrase = f.read().strip()
+                        if phrase:
+                            data.append({"phrase": phrase, "target": sentiment})
+        return pd.DataFrame(data)
+
+    # Crear datasets
+    train_df = build_dataset(os.path.join(data_root, "train"))
+    test_df = build_dataset(os.path.join(data_root, "test"))
+
+    if train_df.empty or test_df.empty:
+        raise ValueError("El dataset está vacío. Verifica la ruta de extracción.")
+
+    # Guardar CSVs
+    train_df.to_csv(os.path.join(output_path, "train_dataset.csv"), index=False)
+    test_df.to_csv(os.path.join(output_path, "test_dataset.csv"), index=False)
